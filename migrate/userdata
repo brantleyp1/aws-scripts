@@ -1,0 +1,7 @@
+#!/bin/bash
+hostnamectl set-hostname --static itsmtstpol2
+cd /tmp
+export no_proxy=\"localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.0.0.0/8,logs.us-east-1.amazonaws.com,.s3.us-east-1.amazonaws.com,s3.us-east-1.amazonaws.com,.secretsmanager.us-east-1.amazonaws.com,.ec2messages.us-east-1.amazonaws.com,.ssm.us-east-1.amazonaws.com,.api.ecr.us-east-1.amazonaws.com,api.ecr.us-east-1.amazonaws.com,.ecs-telemetry.us-east-1.amazonaws.com,.ssmmessages.us-east-1.amazonaws.com,.ecs.us-east-1.amazonaws.com,.elasticloadbalancing.us-east-1.amazonaws.com,.monitoring.us-east-1.amazonaws.com,.ec2.us-east-1.amazonaws.com,.dkr.ecr.us-east-1.amazonaws.com,.ecs-agent.us-east-1.amazonaws.com,.monitoring.us-east-1.amazonaws.com,169.254.169.254,.internal,.bbvacompass.com,.compassbnk.com,secretsmanager.us-east-1.amazonaws.com,.s3.amazonaws.com,s3.amazonaws.com,dynamodb.us-east-1.amazonaws.com,.dynamodb.us-east-1.amazonaws.com,bitbucket.tools.live.cloud.bbvausa.com,artifactory.tools.live.cloud.bbvausa.com,crowd.tools.live.cloud.bbvausa.com,bitbucket.tools.work.cloud.bbvausa.com,artifactory.tools.work.cloud.bbvausa.com,crowd.tools.work.cloud.bbvausa.com,bitbucket.tools.play.cloud.bbvausa.com,artifactory.tools.play.cloud.bbvausa.com,crowd.tools.play.cloud.bbvausa.com\"
+sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+sudo systemctl enable amazon-ssm-agent
+sudo systemctl start amazon-ssm-agent

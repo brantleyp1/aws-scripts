@@ -1,0 +1,26 @@
+Type,Protocol,Port,Source,Cidr,Description
+#Custom TCP,TCP,3205,Custom,"10.240.99.0/25,10.240.101.0/25,10.240.100.128/25",actifio,For SQL DB Actifio
+#Custom TCP,TCP,5106,Custom,"10.240.99.0/25,10.240.101.0/25,10.240.100.128/25",actifio,For SQL DB Actifio
+#Custom UDP,UDP,8082,Custom,10.10.52.122/32,Mcafee Prod,
+#Custom TCP,TCP,9352,Custom,10.10.52.122/32,Mcafee Prod,
+#Custom TCP,TCP,8444,Custom,10.10.52.122/32,Mcafee Prod,
+#Custom TCP,TCP,9998,Custom,10.10.53.0/24,NetIQ,
+#Custom TCP,TCP,3260,Custom,"10.240.99.0/25,10.240.101.0/25,10.240.100.128/25",actifio,For SQL DB Actifio
+#Custom TCP,TCP,225,Custom,10.1.77.59/32,Smarts,
+#Custom TCP,TCP,225,Custom,10.10.126.0/24,Smarts,
+#Custom TCP,TCP,8443,Custom,10.10.52.122/32,Mcafee Prod,
+#HTTPS,TCP,443,Custom,"10.240.99.0/25,10.240.101.0/25,10.240.100.128/25",actifio,For SQL DB Actifio
+#Custom UDP,UDP,161,Custom,10.10.53.0/24,NetIQ,
+#Custom UDP,UDP,161,Custom,10.1.77.59/32,Smarts,
+#Custom UDP,UDP,161,Custom,10.10.126.0/24,Smarts,
+#Custom TCP,TCP,902,Custom,"10.240.99.0/25,10.240.101.0/25,10.240.100.128/25",actifio,For SQL DB Actifio
+#Custom TCP,TCP,9999,Custom,10.10.53.0/24,NetIQ,
+#Custom TCP,TCP,9350,Custom,10.10.52.122/32,Mcafee Prod,
+#Custom TCP,TCP,135,Custom,10.10.53.0/24,NetIQ,
+#Custom TCP,TCP,8192,192.168.0.0/16,SQL Studio
+#Custom TCP,TCP,8192,172.16.0.0/12,SQL Studio
+#Custom TCP,TCP,8192,10.0.0.0/8,SQL Studio
+Custom UDP,UDP,138,Custom,10.10.52.0/24,Netbios
+Custom TCP,TCP,137,Custom,10.10.52.0/24,Netbios
+Custom TCP,TCP,139,Custom,10.10.52.0/24,Netbios
+SMB,TCP,445,Custom,10.10.52.0/24,microsoft-ds

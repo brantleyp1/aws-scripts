@@ -1,0 +1,29 @@
+---
+- name: deploying SSM to instances
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset: min
+  environment:
+    no_proxy: .ssm.us-east-1.amazonaws.com
+    http_proxy: http://awsproxyfarm.bbvacompass.com:8080
+    https_proxy: http://awsproxyfarm.bbvacompass.com:8080
+  tasks:
+
+  - name: install latest ssm agent for yum based
+    yum:
+      name: https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+      state: latest
+    when: ansible_pkg_mgr == "yum"
+
+  - name: Install latest ssm agent for apt based
+    apt:
+      deb: https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+      state: latest
+    when: ansible_pkg_mgr == "apt"
+
+  - name: start service
+    service:
+      name: amazon-ssm-agent
+      state: restarted
+      enabled: yes

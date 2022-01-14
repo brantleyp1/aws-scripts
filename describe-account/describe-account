@@ -1,0 +1,267 @@
+#!/bin/bash
+#
+#############################################
+#
+# quickly describe an account. defaults to us-east-1 but can run any/all regions.
+#
+# new options can be added pretty easily added, some tab issues will arrise in the table output so test carefully
+#
+#############################################
+#
+
+## default region setting
+region=us-east-1
+
+COLTEXT=table
+force=false
+quiet=false
+
+## help function
+usage () {
+usagetext="\
+usage: $0
+	-h | --help	Print this help file
+	-r | --region	Specify a region other than us-east-1
+			Options are:	- us		For all US regions
+					- us-eu		For all US and EU regions
+					- specific region. See --list for all regions. Can search multiple by separating choices with comma(,)
+					  i.e. us-east-1,us-west-1
+	-p | --profile	You can specify which AWS profile to run against
+	-o | --output	Output as either table, yaml, or text
+	-l | --list	List all regions in the account
+	-q | --quiet	Suppress message about empty regions
+	-f | --force	Force running describe on regions probably empty, supercedes quiet flag
+"
+echo -e "$usagetext"
+}
+
+## function to gather stats for account
+function describe () {
+# how many ec2s?
+ec2num=$(${awscommand} ec2 describe-instances --region ${region} --query 'Reservations[].Instances[*].[State.Name,Platform]' --output text)
+linnum=$(for word in ${ec2num[*]}; do echo $word;done | grep -c "None")
+winnum=$(for word in ${ec2num[*]}; do echo $word;done | grep -c "windows")
+runec2num=$(for i in 1; do echo "${ec2num[@]}"; done | grep -c running)
+stopec2num=$(for i in 1; do echo "${ec2num[@]}"; done | grep -c stopped)
+
+
+
+# empty region
+if [[ "$force" == "false" ]]; then
+	if [[ "${#ec2num[0]}" -eq "0" ]]; then
+			if [[ "$quiet" == "false" ]]; then
+				echo -e "Region ${region} appears unused and has no EC2 Instances. To run anyways rerun $0 with -f flag"
+			fi
+		return
+	fi
+fi
+#echo "ec2num array has ${#ec2num[@]}"
+
+# how many s3s?
+s3num=$(${awscommand} s3api list-buckets --output text --region ${region} | grep -c BUCKETS)
+
+# how many RDSs?
+rdsnum=$(${awscommand} rds describe-db-instances --query 'DBInstances[*].[DBName,DBInstanceIdentifier,StorageEncrypted]' --output text --region ${region} | wc -l | sed 's/^ *//g')
+
+# how many volumes
+volarray=$(${awscommand} ec2 describe-volumes --region ${region} --query 'Volumes[*].[Encrypted,State]' --output text)
+volnum=${#volarray[*]}
+attnum=$(for i in 1; do echo "${volarray[@]}"; done | grep -c "in-use")
+unanum=$(for i in 1; do echo "${volarray[@]}"; done | grep -c available)
+encnum=$(for i in 1; do echo "${volarray[@]}"; done | grep -c True)
+unencnum=$(for i in 1; do echo "${volarray[@]}"; done | grep -c False)
+
+# how many elbs
+elbnum=$(${awscommand} elb describe-load-balancers --region ${region} --query 'LoadBalancerDescriptions[].LoadBalancerName' | egrep -cv "\[|\]")
+
+# how many security groups
+secgrpnum=$(${awscommand} ec2 describe-security-groups --region ${region} --query 'SecurityGroups[*].[GroupName,GroupId]' --output text | egrep -cv "\[|\]")
+
+outputtext="\
+Region - $region
+ EC2 Numbers:\tTotal: => $(( $linnum + $winnum ))\tWindows => $winnum\t  Linux => $linnum\t  Running => $runec2num\t  Stopped => $stopec2num
+ EBS Volumes:\tTotal: => $(( $attnum + $unanum ))\tUnattached => $unanum\t  Attached => $attnum   Encrypted => $encnum   Unencrypted => $unencnum
+ s3 Buckets:\tTotal: => $s3num 
+ RDS Instances:\tTotal: => $rdsnum   
+ ELBs:\t\tTotal: => $elbnum
+ SecGroups:\tTotal: => $secgrpnum
+"
+
+outputyaml="\
+- Region: $region
+  - EC2 Numbers
+      Total: $(( $linnum + $winnum ))
+        Windows: $winnum
+        Linux: $linnum
+        Running: $runec2num
+        Stopped: $stopec2num
+  - EBS Volumes
+      Total: $(( $attnum + $unanum ))
+        Unattached: $unanum
+        Attached: $attnum
+        Encrypted: $encnum
+        Unencrypted: $unencnum
+  - s3 Buckets
+      Total: $s3num 
+  - RDS Instances
+      Total: $rdsnum   
+  - ELBs
+      Total: $elbnum
+  - SecGroups
+      Total: $secgrpnum
+"
+
+outputtexttable="\
+======================;======================;======================;======================;======================;======================
+Region - $region
+----------------------;---------------------;---------------------;---------------------;---------------------;---------------------
+ EC2 Numbers:   ;| EBS Volumes:   ;| s3 Buckets:   ;| RDS Instances:   ;| ELBs:   ;| SecGroups:
+----------------------;---------------------;---------------------;---------------------;---------------------;---------------------
+ Total:  => $(( $linnum + $winnum ));| Total:     => $(( $attnum + $unanum ));| Total: => $s3num   ;| Total: => $rdsnum   ;| Total: => $elbnum   ;| Total: => $secgrpnum
+ Linux   => $linnum   ;| Attached   => $attnum   ;|   ;|   ;|   ;|
+ Windows => $winnum;| Unattached => $unanum   ;|   ;|   ;|   ;|
+ Running => $runec2num;| Encrypted => $encnum   ;|   ;|   ;|   ;|
+ Stopped => $stopec2num;| Unencrypted => $unencnum   ;|   ;|   ;|   ;|
+----------------------;---------------------;---------------------;---------------------;---------------------;---------------------
+"
+#echo -e "$outputtexttable"
+case $COLTEXT in
+	"table" )
+		column -t -s ';' <<< "$outputtexttable"
+	;;
+	"text" )
+		echo -e "$outputtext"
+	;;
+	"yaml" )
+		echo -e "$outputyaml"
+	;;
+	* )
+		echo -e "\nOutput options are table, yaml, or text, assuming you meant table...\n"
+		column -t -s ';' <<< "$outputtexttable"
+	;;
+esac
+
+}
+
+listreg () {
+if aliasname=$(${awscommand} iam list-account-aliases --query AccountAliases --output text 2> /dev/null); then
+	echo -e "\nDescribing account: $aliasname"
+else
+	echo -e "\nYou're not logged in, please run stsauth or stshelper\n"
+	exit 5
+fi
+reglist=$(${awscommand} ec2 describe-regions --output text | awk '{ print $NF }')
+echo "$reglist"
+exit
+}
+
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+    "--help") set -- "$@" "-h" ;;
+    "--region") set -- "$@" "-r" ;;
+    "--list") set -- "$@" "-l" ;;
+    "--force") set -- "$@" "-f" ;;
+    "--quiet") set -- "$@" "-q" ;;
+    "--output") set -- "$@" "-o" ;;
+    "--profile") set -- "$@" "-p" ;;
+    *)        set -- "$@" "$arg"
+  esac
+done
+
+while getopts "qfhr:lo:p:" opt; do
+    case $opt in
+        r ) #echo "Run Numbers - argument = $OPTARG "
+            set -f # disable glob
+            IFS=',' # split on space characters
+            array=($OPTARG) # use the split+glob operator
+		;;
+	l ) listreg
+		;;
+	o ) COLTEXT=$OPTARG
+		;;
+	f ) force=true
+		;;
+	q ) quiet=true
+		;;
+	p ) runprofile=$OPTARG
+		;;
+	h ) usage
+		exit 0
+		;;
+        * ) usage
+		exit 1
+		;;
+    esac
+done
+shift $(expr $OPTIND - 1) # remove options from positional parameters
+
+#runprofile=$AWS_PROFILE
+if [ -z $runprofile ]; then
+	awscommand="aws"
+else
+	awscommand="aws --profile $runprofile"
+fi
+
+## testing connectivity
+
+if aliasname=$(${awscommand} iam list-account-aliases --query AccountAliases --output text 2> /dev/null); then
+	echo -e "\nDescribing account: $aliasname"
+else
+	echo "You're not logged in, please run stsauth or stshelper"
+	exit 5
+fi
+
+case $array in
+	"all" )
+		array=
+		while IFS= read -r line; do array+=("$line"); done < <(${awscommand} ec2 describe-regions --output text | awk '{ print $NF }')
+		unset array[0]
+		echo -e "\n\tRunning describe for all ${#array[@]} regions.\n\tThis may take several minutes...\n"
+			for i in "${array[@]}"; do
+				region=${i}
+				describe
+			done
+		;;
+	"us" )
+		array=
+		while IFS= read -r line; do array+=("$line"); done < <(${awscommand} ec2 describe-regions --output text | awk '{ print $NF }' | egrep "^us")
+		unset array[0]
+		echo -e "\n\tRunning describe for all ${#array[@]} US regions.\n"
+			for i in "${array[@]}"; do
+				region=${i}
+				describe
+			done
+		;;
+	"us-eu" )
+		array=
+		while IFS= read -r line; do array+=("$line"); done < <(${awscommand} ec2 describe-regions --output text | awk '{ print $NF }' | egrep "^us|^eu")
+		unset array[0]
+		echo -e "\n\tRunning describe for all ${#array[@]} US and EU regions.\n"
+			for i in "${array[@]}"; do
+				region=${i}
+				describe
+			done
+		;;
+	* )
+		if [[ "${#array[@]}" -gt "0" ]]; then
+		echo -e "\n\tRunning describe for ${#array[@]} region(s).\n"
+		while IFS= read -r line; do reglist+=("$line"); done < <(${awscommand} ec2 describe-regions --output text | awk '{ print $NF }')
+#		unset reglist[0]
+#		declare -A reglist=$(${awscommand} ec2 describe-regions --output text | awk '{ print $NF }')
+			for i in "${array[@]}"; do
+#				if echo ${reglist[*]} | awk '$1 == "'$i'"' > /dev/null; then
+				if echo ${reglist[*]} | grep "$i" > /dev/null; then
+					region=${i}
+					describe
+				else
+					echo -e "\nI don't recognize the region, ${i}\n"
+				fi
+			done
+		else
+			echo -e "\n\tRunning describe for us-east-1 region only.\n"
+			describe
+		fi
+		;;
+esac
